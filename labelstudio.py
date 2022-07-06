@@ -8,9 +8,9 @@ class Project:
         self.project_id = project_id
         self.token = token
 
-    def export_tasks(self, export_type="CONLL2003", file='train.conll', id=None):
+    def export_tasks(self, export_type="CONLL2003", file='train.conll', snapshot=None):
 
-        response = requests.get(f'http://{self.server}/labelstudio/api/projects/{self.project_id}/exports/{id}/download',
+        response = requests.get(f'http://{self.server}/labelstudio/api/projects/{self.project_id}/exports/{snapshot}/download',
                                 headers={'Authorization': f'Token {self.token}'},
                                 params={'exportType' : export_type})
 
@@ -42,12 +42,19 @@ class Project:
                                 headers={'Authorization': f'Token {self.token}'})
         return response.text
 
-    def import_tasks(self, file):
+    def import_tasks(self, file=None):
 
         response = requests.post(f'http://{self.server}/labelstudio/api/projects/{self.project_id}/import',
                                  headers={'Authorization': f'Token {self.token}'},
                                  files = {'blau':open(file, 'rb')})
 
+        print(response.text)
+
+    def import_data(self, data=None):
+
+        response = requests.post(f'http://{self.server}/labelstudio/api/projects/{self.project_id}/import',
+                                 headers={'Authorization': f'Token {self.token}'},
+                                 json = data)
         print(response.text)
 
     def test(self):

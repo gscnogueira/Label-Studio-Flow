@@ -1,4 +1,3 @@
-import re
 import json
 import pickle
 
@@ -6,45 +5,7 @@ import ktrain
 from ktrain import text as txt
 
 import labelstudio as ls
-
-def gen_json(texto, pred):
-
-    json_ = {"data":{} , "predictions":[]}
-    json_["data"]["text"] = texto
-
-    # print(json.dumps(json_))
-
-    start = 0
-    end   = 0
-    label = None
-
-    lista = []
-    print(texto)
-    print('-'*100)
-    print(pred)
-
-    while pred:
-
-        if re.match(r'\s', texto[end]):
-            end+=1
-            continue
-
-        token, tag  = pred.pop(0)
-
-        if tag[0] != 'I' and end>0:
-            if label:
-                lista.append({'start':start,
-                              'end' : end,
-                              'text' : texto[start:end],
-                              'label' : label})
-            start = end
-
-        end+=len(token)
-        label = tag[2:]
-
-    print('-'*100)
-    print(lista)
-
+from utils import gen_json
 
 SERVER   = '164.41.76.30'
 TRAIN_ID = '36'
@@ -56,19 +17,38 @@ TDATA = 'train.conll'
 VDATA = 'train.conll'
 
 
-
 train_set = ls.Project(SERVER, TRAIN_ID, TOKEN)
 test_set = ls.Project(SERVER, TEST_ID, TOKEN)
 dump_set = ls.Project(SERVER, DUMP_ID, TOKEN)
 
-# test_set.export_tasks(export_type='CSV', file='test.csv', id=3)
 
-with open('preds.pickle', 'rb') as f:
-    preds = pickle.load(f)
+train_set.export_tasks(snapshot=1)
+
+(trn, val, preproc) = txt.entities_from_conll2003(TDATA, val_filepath=VDATA)
+
+model_bertimbau = txt.sequence_tagger(
+    'bilstm-bert', preproc, verbose=0,
+    bert_model='neuralmind/bert-base-portuguese-cased')
+
+learner_bertimbau = ktrain.get_learner(
+    model_bertimbau, train_data=trn,
+    val_data=val, batch_size=128)
+
+learner_bertimbau.fit(
+    0.01, 1, cycle_len=5,
+    checkpoint_folder='/tmp/saved_weights_bertimbau')
+
+predictor_bertimbau = ktrain.get_predictor(
+    learner_bertimbau.model, preproc)
 
 textos = test_set.get_txt()
 
-gen_json(textos[1], preds[1])
+preds = predictor_bertimbau.predict(textos)
+
+data = [gen_json(texto, pred) for
+        texto, pred in zip(textos, preds)]
+
+dump_set.import_data(data=data)
 
 
 
