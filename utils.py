@@ -8,10 +8,11 @@ def get_result(texto, pred):
 
     result = []
 
-    while len(pred)>0:
+    while len(pred)>0 and end < len(texto):
 
         
-        if re.match(r'\s', texto[end]):
+        pattern = re.compile('[\s\-]')
+        if re.match(pattern, texto[end]):
             end+=1
             continue
 
@@ -19,15 +20,16 @@ def get_result(texto, pred):
 
         if tag[0] != 'I' and end>0:
             if label:
-                result.append({"id": end,
+                result.append({"id": str(end),
                                "from_name": "label",
                                "to_name": "text",
                                "type":"labels",
+                               # "readonly": False,
                                "value":{
                                    'start':start,
                                    'end' : end,
                                    'text' : texto[start:end],
-                                   'score': 1,
+                                   'score': 0.5,
                                    'labels' : [label]
                                }
                                })
