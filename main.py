@@ -29,8 +29,7 @@ preds = pickle.load(open('preds.pickle', 'rb'))
 
 data = [gen_json(texto, pred) for texto, pred in zip(textos, preds)]
 
-# dump_set.import_data(data=data)
-print(json.dumps(data))
+dump_set.import_data(data=data)
 
 
 
