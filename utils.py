@@ -47,3 +47,20 @@ def gen_json(texto, pred):
     json_["predictions"].append({"model_version": 'BERTimbau',
                                  "result": get_result(texto, pred)})
     return json_
+
+def export_tasks_CONLL(project):
+    export_type="CONLL2003"
+    response = project.make_request(
+        method='GET',
+        url=f'/api/projects/{project.id}/export?exportType={export_type}')
+    with open('train.conll', 'w') as f:
+        f.write(response.text)
+
+def export_tasks_text(project):
+    export_type="TSV"
+    response = project.make_request(
+        method='GET',
+        url=f'/api/projects/{project.id}/export?exportType={export_type}')
+    return response.text
+
+
