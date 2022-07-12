@@ -57,10 +57,10 @@ def export_tasks_CONLL(project):
         f.write(response.text)
 
 def export_tasks_text(project):
-    export_type="TSV"
-    response = project.make_request(
-        method='GET',
-        url=f'/api/projects/{project.id}/export?exportType={export_type}')
-    return response.text
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task['data']['text'] for task in tasks]
 
 

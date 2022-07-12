@@ -2,8 +2,8 @@ import json
 import pickle
 import time
 
-import ktrain
-from ktrain import text as txt
+# import ktrain
+# from ktrain import text as txt
 
 from label_studio_sdk import Client
 
@@ -63,8 +63,8 @@ unlabeled_set = ls.get_project(U_ID)
 #     learner_bertimbau.model, preproc)
 
 
-textos = labeled_set.export_tasks()
-print(len( textos ))
+texts = export_tasks_text(unlabeled_set)
+print(texts)
 
 # data = [gen_json(texto, pred) for texto, pred in zip(textos, preds)]
 
