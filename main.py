@@ -8,28 +8,27 @@ import labelstudio as ls
 from utils import gen_json
 
 SERVER   = '164.41.76.30'
-TRAIN_ID = '36'
-TEST_ID  = '35'
-DUMP_ID  = '37'
+L_ID = '39'
+U_ID = '40'
 TOKEN    = 'bc36020e5d03487292cac63d82661daa12320042'
 
 TDATA = 'train.conll'
 VDATA = 'train.conll'
 
 
-train_set = ls.Project(SERVER, TRAIN_ID, TOKEN)
-test_set = ls.Project(SERVER, TEST_ID, TOKEN)
-dump_set = ls.Project(SERVER, DUMP_ID, TOKEN)
+labeled_set   = ls.Project(SERVER, L_ID, TOKEN)
+unlabeled_set = ls.Project(SERVER, U_ID, TOKEN)
 
 
-textos = test_set.get_txt()
+print(labeled_set.list_snapshots())
 
-preds = pickle.load(open('preds.pickle', 'rb'))
+# textos = unlabeled_set.get_txt()
 
+# print(textos)
 
-data = [gen_json(texto, pred) for texto, pred in zip(textos, preds)]
+# data = [gen_json(texto, pred) for texto, pred in zip(textos, preds)]
 
-dump_set.import_data(data=data)
+# dump_set.import_data(data=data)
 
 
 
