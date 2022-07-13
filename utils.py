@@ -24,7 +24,6 @@ def get_result(texto, pred):
                                "from_name": "label",
                                "to_name": "text",
                                "type":"labels",
-                               # "readonly": False,
                                "value":{
                                    'start':start,
                                    'end' : end,
