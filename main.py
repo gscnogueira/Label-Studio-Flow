@@ -2,15 +2,18 @@ import json
 import pickle
 import time
 
-# import ktrain
-# from ktrain import text as txt
+import ktrain
+from ktrain import text as txt
 
 from label_studio_sdk import Client
 
+import utils
 from utils import get_result
 from utils import gen_json
-from utils import export_tasks_CONLL, export_tasks_text
+from utils import export_tasks_CONLL
 from utils import export_tasks_text
+from utils import train_model
+from utils import get_entities_from_prediction
 
 LABEL_STUDIO_URL = 'http://164.41.76.30/labelstudio'
 API_KEY =  'bc36020e5d03487292cac63d82661daa12320042'
@@ -25,96 +28,39 @@ ls = Client(url=LABEL_STUDIO_URL, api_key=API_KEY)
 ls.check_connection()
 
 
-labeled_set   = ls.get_project(L_ID)
-unlabeled_set = ls.get_project(U_ID)
+annotation_set   = ls.get_project(L_ID)
+prediction_set = ls.get_project(U_ID)
 
-texts = export_tasks_text(unlabeled_set)
-preds = pickle.load(open("preds.pickle", 'rb'))
+print("Downloading training data from Label Studio...")
+export_tasks_CONLL(annotation_set)
 
-# print(texts[0])
-# print(preds[0])
-# pred_json = gen_json(texts[0],preds[0])
-# print(json.dumps(pred_json))
-tasks = [gen_json(text, pred) for text, pred in zip(texts, preds)]
+modelos = [('BERTimbau-1', 'neuralmind/bert-base-portuguese-cased'),
+           ('BERTimbau-2', 'neuralmind/bert-base-portuguese-cased'),
+           ('BERTLeNERBR', 'pierreguillou/bert-base-cased-pt-lenerbr')]
 
-unlabeled_set.make_request('DELETE', 'api/projects/40/tasks/')
-unlabeled_set.import_tasks(tasks)
+predictors = []
 
+(trn, val, preproc) = txt.entities_from_conll2003(TDATA,
+                                                  val_filepath=VDATA,
+                                                  verbose=0)
 
-# print(response.text)
+for (model, source) in modelos :
+    predictors.append(train_model(name=model,
+                                  transformer_model=source,
+                                  trn=trn, val=val,
+                                  preproc=preproc))
 
+print("Downloading Tasks ...")
+tasks_texts = export_tasks_text(anotation_set)
 
+print("Realizando predições ...")
+predictions = [predictor.predict(tasks_texts) for predictor in predictors]
 
+print("Comparando predições ...")
+agreements = get_agreements(task_texts, predictions )
+tasks = [gen_json(**agreement) for agreement in agreements]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# print("Downloading training data from Label Studio...")
-# tic = time.perf_counter()
-# export_tasks_CONLL(labeled_set)
-# toc = time.perf_counter()
-# print(f'Done![{toc - tic:0.4f}s]')
-
-# (trn, val, preproc) = txt.entities_from_conll2003(TDATA,
-#                                                   val_filepath=VDATA,
-#                                                   verbose=0)
-
-# print("Criando modelo")
-# tic = time.perf_counter()
-# model_bertimbau = txt.sequence_tagger(
-#     'bilstm-bert', preproc, verbose=0,
-#     transformer_model='neuralmind/bert-base-portuguese-cased')
-# toc = time.perf_counter()
-# print(f'Done![{toc - tic:0.4f}s]')
-
-# print("Criando learner")
-# tic = time.perf_counter()
-# learner_bertimbau = ktrain.get_learner(
-#     model_bertimbau, train_data=trn,
-#     val_data=val, batch_size=128)
-# toc = time.perf_counter()
-# print(f'Done![{toc - tic:0.4f}s]')
-
-# print("Treinando learner")
-# tic = time.perf_counter()
-# learner_bertimbau.fit(
-#     0.01, 1, cycle_len=5,
-#     checkpoint_folder='/tmp/saved_weights_bertimbau')
-# toc = time.perf_counter()
-# print(f'Done![{toc - tic:0.4f}s]')
-
-# predictor_bertimbau = ktrain.get_predictor(
-#     learner_bertimbau.model, preproc)
-
-
-
-# print("Baixando textos...")
-# texts = export_tasks_text(unlabeled_set)
-
-# print("Realizando predições...")
-# preds = predictor_bertimbau.predict(texts)
-# with open('preds.pickle', 'wb') as f:
-#     pickle.dump(preds, f)
-
-
-# data = [gen_json(texto, pred) for texto, pred in zip(textos, preds)]
-
-# dump_set.import_data(data=data)
-
-
-
-
-
+print("Atualizando predições ...")
+prediction_set.make_request('DELETE', 'api/projects/40/tasks/')
+prediction_set.import_tasks(tasks)
 

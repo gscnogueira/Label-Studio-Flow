@@ -1,50 +1,135 @@
 import re
 
+import ktrain 
+from ktrain import text as txt
+
+def train_model(name, transformer_model, trn, val, preproc):
+
+    print(name.center(50, '-'))
+
+    model= txt.sequence_tagger('bilstm-bert',
+                               preproc, verbose=0,
+                               transformer_model=transformer_model)
+
+    learner = ktrain.get_learner(model,
+                                 train_data=trn,
+                                 val_data=val,
+                                 batch_size=128)
+
+    learner.fit(0.01, 1, cycle_len=5,
+                checkpoint_folder=f'/tmp/saved_weights_{name}')
+
+    predictor = ktrain.get_predictor(learner.model, preproc)
+
+    return predictor
+
+def get_agreements(texts,predictions ) :
+
+    agreements =[]
+    entities = [get_entities_from_prediction(prediction) for prediction in predictions]
+
+    for i in range(len(tasks_texts)):
+        veredicts = {}
+        majority    = 0;
+        majority_id = 0;
+
+        for j in range(len(predictors)):
+            veredicts[j]=0
+            for k in range(len(predictions)):
+                if(entities[j][i] == entities[k][i]):
+                    veredicts[j]+=1
+
+        for v in veredicts:        
+            if veredicts[v] > majority :
+                majority = veredicts[v]
+                majority_id = v
+
+        if majority > len(predictors)//2:
+            agreements.append({'text':tasks_texts[i],
+                               'pred': predictions[majority_id][i],
+                               'model_version':'concordancia'})
+
+def get_entities_from_prediction(predictions):
+
+    predicted_entities = []
+
+    for pred in predictions:
+        entities = {}
+        entity = []
+        prev_label = 'O'
+        for token, iob in pred:
+            label = iob[2:] if len(iob) > 2 else 'O'
+            is_begin = (iob[0] == 'B')
+
+            if label!=prev_label or is_begin:
+                if prev_label!='O':
+                    entities[prev_label] = " ".join(entity)
+                    entity = []
+
+            entity.append(token)
+            prev_label = label
+        predicted_entities.append(entities)
+
+    return predicted_entities
+
+def gen_annotation(text, start, end, label):
+    return {"id": str(end),
+            "from_name": "label",
+            "to_name": "text",
+            "type":"labels",
+            "value":{
+                'start':start,
+                'end' : end,
+                'text' : text[start:end],
+                'score': 0.5,
+                'labels' : [label]
+            }}
+
 def get_result(texto, pred):
 
     start = 0
     end   = 0
-    label = None
-
     result = []
+    prev_label='O'
 
     while len(pred)>0 and end < len(texto):
 
-        
         pattern = re.compile('[\s\-]')
         if re.match(pattern, texto[end]):
             end+=1
             continue
 
         token, tag  = pred.pop(0)
+        label = tag[2:] if tag != 'O' else 'O'
+        pos = tag[0]
 
-        if tag[0] != 'I' and end>0:
-            if label:
-                result.append({"id": str(end),
-                               "from_name": "label",
-                               "to_name": "text",
-                               "type":"labels",
-                               "value":{
-                                   'start':start,
-                                   'end' : end,
-                                   'text' : texto[start:end],
-                                   'score': 0.5,
-                                   'labels' : [label]
-                               }
-                               })
+
+        if (label!=prev_label or pos == 'B'):
+            if prev_label!='O':
+                result.append(gen_annotation(text=texto,
+                                             start=start,
+                                             end=end,
+                                             label=prev_label))
             start = end
 
-        end+=len(token)
-        label = tag[2:] if label != 'O' else ''
+        end += len(token)
+        prev_label=label
+
+    if prev_label!='O':
+        result.append(gen_annotation(text=texto,
+                                     start=start,
+                                     end=end,
+                                     label=prev_label))
     return result
 
-def gen_json(texto, pred):
+def gen_json(text, prediction, model_version, task_id):
 
     json_ = {"data":{} , "predictions":[]}
-    json_["data"]["text"] = texto
+    json_["data"]["text"] = text
 
-    json_["predictions"].append({"model_version": 'BERTimbau',
-                                 "result": get_result(texto, pred)})
+    json_["predictions"].append({"model_version": model_version,
+                                 "result": get_result(text, prediction),
+                                 "score":0.9})
     return json_
 
 def export_tasks_CONLL(project):
@@ -60,6 +145,15 @@ def export_tasks_text(project):
                                     f'/api/projects/{project.id}/tasks',
                                     {'page_size': -1})
     tasks = response.json()
+    print(len(tasks))
     return [task['data']['text'] for task in tasks]
+
+
+def get_tasks_ids(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task['id']  for task in tasks]
 
 
