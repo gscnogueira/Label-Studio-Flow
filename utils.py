@@ -28,12 +28,12 @@ def get_agreements(texts,predictions ) :
     agreements =[]
     entities = [get_entities_from_prediction(prediction) for prediction in predictions]
 
-    for i in range(len(tasks_texts)):
+    for i in range(len(texts)):
         veredicts = {}
         majority    = 0;
         majority_id = 0;
 
-        for j in range(len(predictors)):
+        for j in range(len(predictions)):
             veredicts[j]=0
             for k in range(len(predictions)):
                 if(entities[j][i] == entities[k][i]):
@@ -44,10 +44,12 @@ def get_agreements(texts,predictions ) :
                 majority = veredicts[v]
                 majority_id = v
 
-        if majority > len(predictors)//2:
-            agreements.append({'text':tasks_texts[i],
-                               'pred': predictions[majority_id][i],
+        if majority > len(predictions)//2:
+            agreements.append({'text':texts[i],
+                               'prediction': predictions[majority_id][i],
                                'model_version':'concordancia'})
+
+    return agreements
 
 def get_entities_from_prediction(predictions):
 
@@ -122,7 +124,7 @@ def get_result(texto, pred):
                                      label=prev_label))
     return result
 
-def gen_json(text, prediction, model_version, task_id):
+def gen_json(text, prediction, model_version):
 
     json_ = {"data":{} , "predictions":[]}
     json_["data"]["text"] = text
@@ -145,7 +147,6 @@ def export_tasks_text(project):
                                     f'/api/projects/{project.id}/tasks',
                                     {'page_size': -1})
     tasks = response.json()
-    print(len(tasks))
     return [task['data']['text'] for task in tasks]
 
 
@@ -156,4 +157,10 @@ def get_tasks_ids(project):
     tasks = response.json()
     return [task['id']  for task in tasks]
 
+def get_unlabeled_tasks(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task['data']['text'] for task in tasks if not task['annotations']]
 
