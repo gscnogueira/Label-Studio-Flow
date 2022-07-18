@@ -164,3 +164,19 @@ def get_unlabeled_tasks(project):
     tasks = response.json()
     return [task['data']['text'] for task in tasks if not task['annotations']]
 
+# Adicionei essas duas funcoes:
+def get_labeled_tasks(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task for task in tasks if task['is_labeled'] == True]
+
+def get_all_tasks(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return tasks
+
+
