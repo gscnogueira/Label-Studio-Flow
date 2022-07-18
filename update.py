@@ -51,7 +51,7 @@ while True:
             # Concatenamos as tasks
             all_tasks = old_tasks + labeled_tasks
             # Deletamos anotações
-            annotation_set.make_request('DELETE', 'api/projects/40/tasks/')
+            annotation_set.make_request('DELETE', 'api/projects/39/tasks/')
             # importamos as novas anotações
             annotation_set.import_tasks(all_tasks)
 
