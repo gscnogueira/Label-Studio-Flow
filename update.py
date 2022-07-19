@@ -53,7 +53,6 @@ while True:
         if(len(labeled_tasks)>0):
             print("Enviando anotações para projeto de treinamento")
             # Pegando tasks do projeto de treinamento
-<<<<<<< HEAD
             all_tasks = get_all_tasks(annotation_set)
             # Procuramos a task correspondente no projeto de treinamento 
             for i in range(len(all_tasks)):
@@ -64,12 +63,6 @@ while True:
                         break
 
             # Deletamos anotações do projeto de treinamento
-=======
-            old_tasks = get_all_tasks(annotation_set)
-            # Concatenamos as tasks
-            all_tasks = old_tasks + labeled_tasks
-            # Deletamos anotações
->>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
             annotation_set.make_request('DELETE', 'api/projects/39/tasks/')
             # importamos as novas anotações
             annotation_set.import_tasks(all_tasks)
