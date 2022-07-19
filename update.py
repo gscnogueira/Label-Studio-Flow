@@ -15,15 +15,12 @@ from utils import get_agreements
 from utils import get_entities_from_prediction
 from utils import get_result
 from utils import get_unlabeled_tasks
-<<<<<<< HEAD
 from utils import train_model
+
 from utils import get_labeled_tasks
 from utils import get_all_tasks
-=======
-from utils import get_labeled_tasks
-from utils import get_all_tasks
-from utils import train_model
->>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
+from utils import get_unlabeled_tasks_ids
+
 
 LABEL_STUDIO_URL = 'http://164.41.76.30/labelstudio'
 API_KEY =  'bc36020e5d03487292cac63d82661daa12320042'
