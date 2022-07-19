@@ -23,7 +23,7 @@ def train_model(name, transformer_model, trn, val, preproc):
 
     return predictor
 
-def get_agreements(texts,predictions ) :
+def get_agreements(texts,predictions,unlabeled_ids) :
 
     agreements =[]
     entities = [get_entities_from_prediction(prediction) for prediction in predictions]
@@ -45,7 +45,8 @@ def get_agreements(texts,predictions ) :
                 majority_id = v
 
         if majority > len(predictions)//2:
-            agreements.append({'text':texts[i],
+            agreements.append({'id':unlabeled_ids[i],
+                               'text':texts[i],
                                'prediction': predictions[majority_id][i],
                                'model_version':'concordancia'})
 
@@ -124,9 +125,10 @@ def get_result(texto, pred):
                                      label=prev_label))
     return result
 
-def gen_json(text, prediction, model_version):
+def gen_json(text, prediction, model_version, id):
 
-    json_ = {"data":{} , "predictions":[]}
+    json_ = {"meta": {}, "data":{} , "predictions":[]}
+    json_["meta"]["id"] = id
     json_["data"]["text"] = text
 
     json_["predictions"].append({"model_version": model_version,
@@ -164,3 +166,25 @@ def get_unlabeled_tasks(project):
     tasks = response.json()
     return [task['data']['text'] for task in tasks if not task['annotations']]
 
+
+# Adicionei essas funcoes:
+def get_labeled_tasks(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task for task in tasks if task['is_labeled'] == True]
+
+def get_all_tasks(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return tasks
+
+def get_unlabeled_tasks_ids(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': -1})
+    tasks = response.json()
+    return [task['id'] for task in tasks if not task['annotations']]
