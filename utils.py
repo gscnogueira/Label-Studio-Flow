@@ -3,6 +3,7 @@ import re
 import ktrain 
 from ktrain import text as txt
 
+
 def train_model(name, transformer_model, trn, val, preproc):
 
     print(name.center(50, '-'))
@@ -22,6 +23,19 @@ def train_model(name, transformer_model, trn, val, preproc):
     predictor = ktrain.get_predictor(learner.model, preproc)
 
     return predictor
+
+def gen_predictors(models, train_filepath, val_filepath):
+
+    (trn, val, preproc) = txt.entities_from_conll2003(train_filepath,
+                                                      val_filepath=val_filepath,
+                                                      verbose=0)
+    predictors = []
+    for (model, source) in models :
+        predictors.append(train_model(name=model,
+                                    transformer_model=source,
+                                    trn=trn, val=val,
+                                    preproc=preproc))
+    return predictors
 
 def get_agreements(texts,predictions,unlabeled_ids) :
 
@@ -187,3 +201,10 @@ def get_unlabeled_tasks_ids(project):
                                     {'page_size': -1})
     tasks = response.json()
     return [task['id'] for task in tasks if not task['annotations']]
+
+def is_empty_project(project):
+    response = project.make_request('get',
+                                    f'/api/projects/{project.id}/tasks',
+                                    {'page_size': 1})
+    tasks = response.json()
+    return len(tasks)==0

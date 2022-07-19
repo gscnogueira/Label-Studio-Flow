@@ -1,25 +1,21 @@
+import datetime as dt
 import json
 import pickle
 import time
 
-import ktrain
 from ktrain import text as txt
-
 from label_studio_sdk import Client
+import ktrain
 
-import utils
 from utils import export_tasks_CONLL
 from utils import gen_json
 from utils import get_agreements
-from utils import get_entities_from_prediction
-from utils import get_result
 from utils import get_unlabeled_tasks
-from utils import train_model
-
+from utils import gen_predictors
 from utils import get_unlabeled_tasks_ids
 from utils import get_labeled_tasks
 from utils import get_all_tasks
-import datetime as dt
+from utils import is_empty_project
 
 LABEL_STUDIO_URL = 'http://164.41.76.30/labelstudio'
 API_KEY =  'bc36020e5d03487292cac63d82661daa12320042'
@@ -42,78 +38,62 @@ modelos = [('BERTimbau-1', 'neuralmind/bert-base-portuguese-cased'),
            ('BERTLeNERBR', 'pierreguillou/bert-base-cased-pt-lenerbr')]
 
 
-print("Downloading training data from Label Studio...")
-export_tasks_CONLL(annotation_set)
+time = dt.datetime.now()
+start=True
 
+while True:
+    delta = dt.datetime.now() - time
+    if delta.seconds >= 60 or start:
 
-(trn, val, preproc) = txt.entities_from_conll2003(TDATA,
-                                                  val_filepath=VDATA,
-                                                  verbose=0)
+        start = False
 
-predictors = []
-for (model, source) in modelos :
-    predictors.append(train_model(name=model,
-                                  transformer_model=source,
-                                  trn=trn, val=val,
-                                  preproc=preproc))
+        time = dt.datetime.now()
 
+        # Pegamos apenas as tasks anotadas:
+        print(f"[{dt.datetime.now()}] Procurando por novas anotações...")
+        labeled_tasks = get_labeled_tasks(prediction_set)
 
-print("Downloading unlabeled tasks ...")
-tasks_texts = get_unlabeled_tasks(annotation_set)
-unlabeled_ids = get_unlabeled_tasks_ids(annotation_set)
+        if(len(labeled_tasks)<=0 and not is_empty_project(prediction_set)):
+            print("Não foram encrontradas novas anotações.")
+            continue
 
-print("Realizando predições ...")
-predictions = [predictor.predict(tasks_texts) for predictor in predictors]
+        if len(labeled_tasks):
+            ########################################################
+            print(f"[{dt.datetime.now()}] Enviando anotações para projeto de treinamento...")
+            # Pegando tasks do projeto de treinamento
+            all_tasks = get_all_tasks(annotation_set)
+            # Procuramos a task correspondente no projeto de treinamento 
+            for i in range(len(all_tasks)):
+                for j in range(len(labeled_tasks)):
+                    if all_tasks[i]['id'] == labeled_tasks[j]['meta']['id']:
+                        all_tasks[i]['annotations']=labeled_tasks[j]['annotations']
+                        all_tasks[i]['is_labeled']=True
+                        break
 
-print("Comparando predições ...")
-agreements = get_agreements(tasks_texts, predictions, unlabeled_ids)
-tasks = [gen_json(**agreement) for agreement in agreements]
+            # Deletamos anotações do projeto de treinamento
+            annotation_set.make_request('DELETE', 'api/projects/39/tasks/')
+            # importamos as novas anotações
+            annotation_set.import_tasks(all_tasks)
+            ########################################################
 
-print("Atualizando predições ...")
-prediction_set.make_request('DELETE', 'api/projects/40/tasks/')
-prediction_set.import_tasks(tasks)
+        print(f"[{dt.datetime.now()}] Baixando dados rotulados...")
+        export_tasks_CONLL(annotation_set)
 
+        print(f"[{dt.datetime.now()}] Treinando modelos...")
+        predictors = gen_predictors(modelos, train_filepath=TDATA, val_filepath=VDATA)
 
-# time = dt.datetime.now()
+        print(f"[{dt.datetime.now()}] Baixando dados não rotulados...")
+        tasks_texts = get_unlabeled_tasks(annotation_set)
+        unlabeled_ids = get_unlabeled_tasks_ids(annotation_set)
 
-# while True:
-#     delta = dt.datetime.now() - time
-#     if delta.seconds >= 60:
-#         print("Procurando por novas anotações")
-#         # Pegamos apenas as tasks anotadas:
-#         labeled_tasks = get_labeled_tasks(prediction_set)
-#         if(len(labeled_tasks)>0):
-#             print("Enviando anotações para projeto de treinamento")
-#             # Pegando tasks do projeto de treinamento
-#             all_tasks = get_all_tasks(annotation_set)
-#             # Procuramos a task correspondente no projeto de treinamento 
-#             for i in range(len(all_tasks)):
-#                 for j in range(len(labeled_tasks)):
-#                     if all_tasks[i]['id'] == labeled_tasks[j]['meta']['id']:
-#                         all_tasks[i]['annotations']=labeled_tasks[j]['annotations']
-#                         all_tasks[i]['is_labeled']=True
-#                         break
+        print(f"[{dt.datetime.now()}] Realizando predições...")
+        predictions = [predictor.predict(tasks_texts) for predictor in predictors]
 
-#             # Deletamos anotações do projeto de treinamento
-#             annotation_set.make_request('DELETE', 'api/projects/39/tasks/')
-#             # importamos as novas anotações
-#             annotation_set.import_tasks(all_tasks)
+        print(f"[{dt.datetime.now()}] Comparando predições...")
+        agreements = get_agreements(tasks_texts, predictions, unlabeled_ids)
+        tasks = [gen_json(**agreement) for agreement in agreements]
 
-#             # Realizamos o processo de treinamento novamente 
-#             print("Downloading unlabeled tasks ...")
-#             tasks_texts = get_unlabeled_tasks(annotation_set)
+        print(f"[{dt.datetime.now()}] Atualizando predições...")
+        prediction_set.make_request('DELETE', f'api/projects/{U_ID}/tasks/')
+        prediction_set.import_tasks(tasks)
 
-#             print("Realizando predições ...")
-#             predictions = [predictor.predict(tasks_texts) for predictor in predictors]
-
-#             print("Comparando predições ...")
-#             agreements = get_agreements(tasks_texts, predictions )
-#             tasks = [gen_json(**agreement) for agreement in agreements]
-
-#             print("Atualizando predições ...")
-#             prediction_set.make_request('DELETE', 'api/projects/40/tasks/')
-#             prediction_set.import_tasks(tasks)
-#         else:
-#             print("Não foram encrontradas novas anotações")
-
-#         time = dt.datetime.now()
