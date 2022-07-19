@@ -15,9 +15,15 @@ from utils import get_agreements
 from utils import get_entities_from_prediction
 from utils import get_result
 from utils import get_unlabeled_tasks
+<<<<<<< HEAD
 from utils import train_model
 from utils import get_labeled_tasks
 from utils import get_all_tasks
+=======
+from utils import get_labeled_tasks
+from utils import get_all_tasks
+from utils import train_model
+>>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
 
 LABEL_STUDIO_URL = 'http://164.41.76.30/labelstudio'
 API_KEY =  'bc36020e5d03487292cac63d82661daa12320042'
@@ -47,6 +53,7 @@ while True:
         if(len(labeled_tasks)>0):
             print("Enviando anotações para projeto de treinamento")
             # Pegando tasks do projeto de treinamento
+<<<<<<< HEAD
             all_tasks = get_all_tasks(annotation_set)
             # Procuramos a task correspondente no projeto de treinamento 
             for i in range(len(all_tasks)):
@@ -57,6 +64,12 @@ while True:
                         break
 
             # Deletamos anotações do projeto de treinamento
+=======
+            old_tasks = get_all_tasks(annotation_set)
+            # Concatenamos as tasks
+            all_tasks = old_tasks + labeled_tasks
+            # Deletamos anotações
+>>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
             annotation_set.make_request('DELETE', 'api/projects/39/tasks/')
             # importamos as novas anotações
             annotation_set.import_tasks(all_tasks)

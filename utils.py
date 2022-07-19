@@ -166,8 +166,12 @@ def get_unlabeled_tasks(project):
     tasks = response.json()
     return [task['data']['text'] for task in tasks if not task['annotations']]
 
+<<<<<<< HEAD
 
 # Adicionei essas funcoes:
+=======
+# Adicionei essas duas funcoes:
+>>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
 def get_labeled_tasks(project):
     response = project.make_request('get',
                                     f'/api/projects/{project.id}/tasks',
@@ -182,9 +186,13 @@ def get_all_tasks(project):
     tasks = response.json()
     return tasks
 
+<<<<<<< HEAD
 def get_unlabeled_tasks_ids(project):
     response = project.make_request('get',
                                     f'/api/projects/{project.id}/tasks',
                                     {'page_size': -1})
     tasks = response.json()
     return [task['id'] for task in tasks if not task['annotations']]
+=======
+
+>>>>>>> 16f263930e20cd9fcf455a39b1f5ef6b97458a19
