@@ -180,7 +180,6 @@ def get_unlabeled_tasks(project):
     tasks = response.json()
     return [task['data']['text'] for task in tasks if not task['annotations']]
 
-# Adicionei essas funcoes:
 def get_labeled_tasks(project):
     response = project.make_request('get',
                                     f'/api/projects/{project.id}/tasks',
@@ -208,3 +207,23 @@ def is_empty_project(project):
                                     {'page_size': 1})
     tasks = response.json()
     return len(tasks)==0
+
+def transfer_annotations(ls,labeled_tasks):
+    annotations = []
+    for labeled_task in labeled_tasks:
+        task_id = labeled_task['meta']['id']
+        for ann in labeled_task['annotations']:
+            annotation = {"result": ann['result'],
+                        "was_cancelled":ann['was_cancelled'],
+                        "ground_truth":ann['ground_truth'],
+                        "lead_time":ann['lead_time'],
+                        "task":task_id, 
+                        "completed_by":ann['completed_by']
+                        } 
+
+            response=ls.make_request('post',
+                                f'/api/tasks/{task_id}/annotations/',
+                                json=annotation)
+
+            annotations.append(response.json())
+    return annotations
