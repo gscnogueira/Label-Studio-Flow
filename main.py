@@ -1,5 +1,8 @@
+import argparse
+import configparser
 import datetime as dt
 import json
+from os.path import exists
 import pickle
 import time
 
@@ -17,26 +20,34 @@ from utils import get_labeled_tasks
 from utils import is_empty_project
 from utils import transfer_annotations
 
-LABEL_STUDIO_URL = 'http://164.41.76.30/labelstudio'
-API_KEY =  'bc36020e5d03487292cac63d82661daa12320042'
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("config_file", help="path to configuration file")
+args = vars(parser.parse_args())
+config_file = args['config_file'] 
 
-L_ID = '39'
-U_ID = '40'
+if not exists(config_file):
+    print('ERROR: File does not exist')
+    exit(1)
 
-TDATA = 'train.conll'
-VDATA = 'train.conll'
+config = configparser.ConfigParser()
+config.read(config_file)
+user_config = config['USER']
+model_config = config['MODELS']
+
+LABEL_STUDIO_URL = user_config['label_studio_url']
+API_KEY =  user_config['label_studio_api_key']
+L_ID = user_config['labeled_project_id']
+U_ID = user_config['unlabeled_project_id']
+TDATA = user_config.get('train_path')
+
+models = [o for o in config.items('MODELS')
+          if o not in config.defaults().items()]
 
 ls = Client(url=LABEL_STUDIO_URL, api_key=API_KEY)
 ls.check_connection()
 
-
 annotation_set = ls.get_project(L_ID)
 prediction_set = ls.get_project(U_ID)
-
-modelos = [('BERTimbau-1', 'neuralmind/bert-base-portuguese-cased'),
-           ('BERTimbau-2', 'neuralmind/bert-base-portuguese-cased'),
-           ('BERTLeNERBR', 'pierreguillou/bert-base-cased-pt-lenerbr')]
-
 
 time = dt.datetime.now()
 start=True
@@ -66,7 +77,7 @@ while True:
         export_tasks_CONLL(annotation_set)
 
         print(f"[{dt.datetime.now()}] Treinando modelos...")
-        predictors = gen_predictors(modelos, train_filepath=TDATA, val_filepath=VDATA)
+        predictors = gen_predictors(models, train_filepath=TDATA, val_filepath=TDATA)
 
         print(f"[{dt.datetime.now()}] Baixando dados não rotulados...")
         tasks_texts = get_unlabeled_tasks(annotation_set)
