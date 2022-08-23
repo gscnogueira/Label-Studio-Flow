@@ -6,19 +6,9 @@ from os.path import exists
 import pickle
 import time
 
-from ktrain import text as txt
-from label_studio_sdk import Client
-import ktrain
+from labelstudio import ls_Client
+from model_query import Models
 
-from utils import export_tasks_CONLL
-from utils import gen_json
-from utils import get_agreements
-from utils import get_unlabeled_tasks
-from utils import gen_predictors
-from utils import get_unlabeled_tasks_ids
-from utils import get_labeled_tasks
-from utils import is_empty_project
-from utils import transfer_annotations
 
 if __name__ == '__main__':
 
@@ -27,8 +17,6 @@ if __name__ == '__main__':
     args = vars(parser.parse_args())
     config_file = args['config_file'] 
 
-
-    exit()
     if not exists(config_file):
         print('ERROR: File does not exist')
         exit(1)
@@ -47,54 +35,49 @@ if __name__ == '__main__':
     models = [o for o in config.items('MODELS')
               if o not in config.defaults().items()]
 
+    ls = ls_Client(server=LABEL_STUDIO_URL,token=API_KEY)
+    model_query = Models()
+    
+    annotation_set = ls.client.get_project(L_ID)
+    prediction_set = ls.client.get_project(U_ID)
 
-    ls = Client(url=LABEL_STUDIO_URL, api_key=API_KEY)
-    ls.check_connection()
-
-    annotation_set = ls.get_project(L_ID)
-    prediction_set = ls.get_project(U_ID)
-
-
+    # Pegamos apenas as tasks anotadas:
     print(f"[{dt.datetime.now()}] Procurando por novas anotações...")
-    labeled_tasks = get_labeled_tasks(prediction_set)
+    labeled_tasks = ls.get_labeled_tasks(project=prediction_set)
 
-    if(len(labeled_tasks)<=0 and not is_empty_project(prediction_set)):
+    if(len(labeled_tasks)<=0 and not ls.is_empty_project(prediction_set)):
         print("Não foram encrontradas novas anotações.")
+        exit()
 
-    if len(labeled_tasks):
-        print(f"[{dt.datetime.now()}] Enviando anotações para projeto de treinamento...")
-        # transfere anotações de um projeto para o outro
-        transfer_annotations(ls,labeled_tasks)
+    print(f"[{dt.datetime.now()}] Enviando anotações para projeto de treinamento...")
+    # transfere anotações de um projeto para o outro
+    ann = ls.transfer_annotations(ls.client,labeled_tasks)
+    with open('temp1.json', 'w') as f:
+        json.dump(ann, f)
 
     print(f"[{dt.datetime.now()}] Baixando dados rotulados...")
-    export_tasks_CONLL(annotation_set)
+    ls.export_tasks_CONLL(annotation_set)
 
     print(f"[{dt.datetime.now()}] Treinando modelos...")
-    predictors = gen_predictors(models, train_filepath=TDATA, val_filepath=TDATA)
+    predictors = model_query.gen_predictors(models, train_filepath=TDATA, val_filepath=TDATA)
 
     print(f"[{dt.datetime.now()}] Baixando dados não rotulados...")
-    tasks_texts = get_unlabeled_tasks(annotation_set)
-    unlabeled_ids = get_unlabeled_tasks_ids(annotation_set)
+    tasks_texts = ls.get_unlabeled_tasks(annotation_set)
+    unlabeled_ids = ls.get_unlabeled_tasks_ids(annotation_set)
 
     print(f"[{dt.datetime.now()}] Realizando predições...")
     predictions = [predictor.predict(tasks_texts) for predictor in predictors]
 
     print(f"[{dt.datetime.now()}] Comparando predições...")
-    agreements = get_agreements(tasks_texts, predictions, unlabeled_ids)
-    tasks = [gen_json(**agreement) for agreement in agreements]
+    agreements = model_query.get_agreements(tasks_texts, predictions, unlabeled_ids)
+    tasks = [ls.gen_json(**agreement) for agreement in agreements]
 
     print(f"[{dt.datetime.now()}] Atualizando predições...")
 
+    ########################################################
     # Update preventivo para manter predições realizadas durante o tempo de treinamento dos modelos
-    labeled_tasks_new = get_labeled_tasks(prediction_set)
-    # para evitar a adição de anotações repetidas
-    for i in range(len(labeled_tasks)):
-        for j in range(len(labeled_tasks_new)):
-            if(labeled_tasks_new[j]['id']==labeled_tasks[i]['id']):
-                labeled_tasks_new.pop(j)
-                break
-            # transfere anotações de um projeto para o outro
-    transfer_annotations(ls,labeled_tasks_new)
+    labeled_tasks_new = ls.get_labeled_tasks(prediction_set)
+    ########################################################
 
     prediction_set.make_request('DELETE', f'api/projects/{U_ID}/tasks/')
     prediction_set.import_tasks(tasks)
